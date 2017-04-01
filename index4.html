@@ -1,0 +1,165 @@
+<!doctype html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<title>Currency Converter</title>
+		<!--<link rel="stylesheet" href="style.css">-->
+		<style>
+			body {
+				background: url(currency.jpg);
+			}
+			table {
+				border: 3px solid gray;
+				font-size: 12pt;
+				background-color: white;
+				opacity: 0.93;
+			}
+			h1 {
+				font-size: 52pt;
+				color: white;
+				text-shadow: black 0 0 20px;
+			}
+			tr:hover td {
+				background-color: lightgray;
+			}
+			th {
+				border: 3px solid gray;
+				padding: 5px;
+			}
+			td {
+				font-family: Verdana, Arial, Helvetica, sans-serif;
+				border: 3px solid lightgray;
+				padding: 5px;
+			}
+			#rub {
+				font-family: Verdana, Arial, Helvetica, sans-serif;
+			}
+			input {
+				width: 100%;
+				border: 0;
+				font-size: 12pt;
+			}
+			button {
+				width: 100%;
+				font-size: 12pt;
+			}
+			.green {
+				color: green;
+			}
+			.red {
+				color: red;
+			}
+		</style>
+	</head>
+	<body>
+		<h1 align="center">Конвертер валют</h1>
+		<table align="center">	
+			<thead>
+				<tr>
+					<th colspan="6" align="center"><h2>Курсы валют ЦБ РФ</h2></th>
+					<th align="center"><h3>Конвертировать в RUB</h3></th>
+				</tr>
+				<tr>
+					<th><h3>Цифр.код</h3></th>
+					<th><h3>Букв.код</h3></th>
+					<th><h3>Номинал</h3></th>
+					<th><h3>Наименование</h3></th>
+					<th><h3>на <span id="date"></span></h3></th>
+					<th><h3>Изменение</h3></th>
+					<th><h3>Введите сумму:</h3></th>
+				</tr>
+			</thead>
+			<tbody id='table-body'>
+			</tbody>
+			<tfoot>
+				<tr>
+					<th colspan="5" align="right"><h3>Рублей РФ</h3></th>
+					<th><button id="calc" onclick="calculation()"><h3>ИТОГО:</h3></button></th>
+					<th><h3 id="rub"></h3></th>
+				</tr>
+			</tfoot>
+		</table>
+		<script>
+			//Наполнение таблицы данными
+			let tableBody = document.querySelector('#table-body');
+			var mult = [];
+			var curr;
+			var count = 0;
+			fetch('http://www.cbr-xml-daily.ru/daily_json.js')
+				.then(res => res.json())
+                .then(json => {
+                    console.log(json);
+					let today = json.Date;
+					today = today.substring(0,10);
+					document.querySelector('#date').textContent = today;
+					//Создание строк таблицы
+					for(let currency in json.Valute) {
+						//console.log(currency, json.Valute[currency].Value)
+						let currencyData = json.Valute[currency];
+						//console.log(currencyData);
+						let newRow = document.createElement('tr');
+						let nom = 0;
+						let val = 0;
+						//Создание ячеек строк таблицы
+						for(let data in currencyData) {
+							//console.log(data, currencyData[data]);
+							if(data !== "ID") {
+								let newTd = document.createElement('td');
+								if(data === "Nominal") nom = currencyData[data];
+								if(data === "Value") {
+									val = currencyData[data];
+									mult[count] = +(val / nom).toFixed(4);
+								}
+								if(data !== "Previous") newTd.textContent = currencyData[data];
+								else {
+									val = val - currencyData[data];
+									newTd.textContent = val.toFixed(4);
+									if(val >= 0) newTd.classList.add('green');
+									else newTd.classList.add('red');
+								}
+								newRow.appendChild(newTd);
+							}
+						}
+						count++;
+						//Создание поля ввода суммы валюты
+						let newTd = document.createElement('td');
+						let newInput = document.createElement('input');
+						newInput.type = "number";
+						newInput.onmouseover = function(event) {newInput.placeholder = "1234567,89"}
+						newInput.onmouseout = function(event) {newInput.placeholder = ""}
+						newInput.onfocus = function(event) {newInput.placeholder = ""}
+						newInput.min = "0";
+						newInput.max = "1000000000000";
+						newInput.step = "1";
+						newInput.addEventListener('keyup', function (event) {currInput(this)});
+						newTd.appendChild(newInput);
+						newRow.appendChild(newTd);
+						tableBody.appendChild(newRow);
+					}
+                });
+			//Функция расчёта результата конвертации
+			function calculation() {
+				curr = document.querySelectorAll('input');
+				let convers = 0;
+				for(let i=0; i<count; i++) {
+					let cv = +curr[i].value;
+					convers = convers + +(cv * mult[i]).toFixed(2);
+				}
+				document.querySelector('#rub').textContent = convers.toFixed(2);
+			}
+			//Функция ограничения для поля ввода
+			function currInput(e) {
+				//console.log(e.value);
+				//let k = event.key;
+				//console.log(k);
+				//Ограничение ввода арифметических символов "E", "e", "+", "-", "," или "."
+				if(e.value === "") e.value = "";
+				//Ограничение ввода числа двумя знаками после запятой
+				if(e.value.indexOf(",") !== -1 || e.value.indexOf(".") !== -1)
+					e.value = e.value.substring(0, e.value.indexOf(".") + 3);
+				//Ограничение - максимальное значение
+				if(+e.value > 1000000000000) e.value = "1000000000000";
+			}
+		</script>
+	</body>
+</html>
